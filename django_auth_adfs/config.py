@@ -246,8 +246,12 @@ class ProviderConfig(object):
             logger.info("Trying to get OpenID Connect config from %s", config_url)
             response = self.session.get(config_url, timeout=settings.TIMEOUT)
             response.raise_for_status()
-            openid_cfg = response.json()
-
+            # Adding try and except here since a lot of servers are configured to return 301 or 302 on unknown
+            # URLs instead of 404, in which case the json parser will throw an error
+            try:
+                openid_cfg = response.json()
+            except requests.JSONDecodeError:
+                raise ConfigLoadError
             response = self.session.get(openid_cfg["jwks_uri"], timeout=settings.TIMEOUT)
             response.raise_for_status()
             signing_certificates = [x["x5c"][0] for x in response.json()["keys"] if x.get("use", "sig") == "sig"]
